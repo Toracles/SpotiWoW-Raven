@@ -1,4 +1,4 @@
-# SpotiWoW-Raven v1.4.6 — Français
+# SpotiWoW-Raven v1.4.7 — Français
 
 SpotiWoW-Raven relie Spotify à compatible WoW 1.12.1 client via le bridge de fichiers SuperWoW. Cette version utilise l’interface et les messages en français.
 
