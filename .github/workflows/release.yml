@@ -133,5 +133,3 @@ jobs:
             dist/SpotiWoW-Raven-Portable-US.zip
             dist/SpotiWoW-Raven-Addon-FR.zip
             dist/SpotiWoW-Raven-Addon-US.zip
-      - name: Submit a Signing Request
-        uses: SignPath/github-action-submit-signing-request@v2
