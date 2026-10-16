@@ -1,0 +1,7 @@
+SpotiWoW-Raven uses the optional Python package syncedlyrics.
+Project: https://github.com/moehmeni/syncedlyrics
+License: MIT
+Install: python -m pip install -r requirements.txt
+
+The lyrics providers contacted by syncedlyrics are third-party services. Their
+availability, coverage, rate limits, and terms may change independently of SpotiWoW-Raven.

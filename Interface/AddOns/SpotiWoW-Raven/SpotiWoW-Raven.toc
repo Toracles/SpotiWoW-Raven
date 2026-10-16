@@ -1,0 +1,9 @@
+## Interface: 11200
+## Title: SpotiWoW-Raven
+## Notes: Compagnon Spotify pour Turtle WoW via le bridge de fichiers SuperWoW.
+## Author: CloudNine_Ex
+## Version: 1.4.6
+## SavedVariables: SpotifyNowDB
+
+SpotiWoW-Raven_Locale.lua
+SpotiWoW-Raven.lua

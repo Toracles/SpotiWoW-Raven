@@ -1,0 +1,135 @@
+name: Build Windows release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Set up Python for packaging
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pyinstaller pystray pillow psutil "syncedlyrics==1.0.1"
+
+      - name: Build hidden-console runtime launcher
+        shell: pwsh
+        run: |
+          # PyInstaller stores icon paths in the .spec file. Because --specpath is
+          # build/launcher, relative icon paths are later resolved against that folder.
+          # Use absolute paths for the icon and entry-point to avoid FileNotFoundError.
+          $root = $env:GITHUB_WORKSPACE
+          $iconPath = Join-Path $root "companion/SpotiWoW-Raven.ico"
+          $scriptPath = Join-Path $root "companion/SpotiWoW-RavenLauncher.py"
+          $distPath = Join-Path $root "dist"
+          $workPath = Join-Path $root "build/launcher"
+
+          if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+            throw "Launcher icon not found: $iconPath"
+          }
+          if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+            throw "Launcher source not found: $scriptPath"
+          }
+
+          New-Item -ItemType Directory -Force -Path $distPath | Out-Null
+          python -m PyInstaller --clean --noconfirm --onefile --windowed `
+            --name SpotiWoW-Raven `
+            --icon "$iconPath" `
+            --collect-all syncedlyrics --collect-all pystray `
+            --collect-all psutil --collect-all PIL `
+            --distpath "$distPath" --workpath "$workPath" --specpath "$workPath" `
+            "$scriptPath"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Assemble French and US portable runtime bundles
+        shell: pwsh
+        run: |
+          $root = $PWD
+          $variants = @(
+            @{ Code = "FR"; Readme = "README_FR.txt"; AddonSource = "Interface/AddOns/SpotiWoW-Raven" },
+            @{ Code = "US"; Readme = "README_EN_US.txt"; AddonSource = "Interface/AddOns/SpotiWoW-Raven" }
+          )
+          foreach ($variant in $variants) {
+            $stage = Join-Path $root ("release-stage-" + $variant.Code)
+            New-Item -ItemType Directory -Force -Path $stage | Out-Null
+            New-Item -ItemType Directory -Force -Path (Join-Path $stage "Interface/AddOns") | Out-Null
+            New-Item -ItemType Directory -Force -Path (Join-Path $stage "companion") | Out-Null
+            $addonDest = Join-Path $stage "Interface/AddOns/SpotiWoW-Raven"
+            New-Item -ItemType Directory -Force -Path $addonDest | Out-Null
+            Copy-Item -Recurse (Join-Path $variant.AddonSource "*") $addonDest -Force
+            if ($variant.Code -eq "US") {
+              Copy-Item "variants/US/SpotiWoW-Raven_Locale.lua" (Join-Path $addonDest "SpotiWoW-Raven_Locale.lua") -Force
+              Copy-Item "variants/US/SpotiWoW-Raven.toc" (Join-Path $addonDest "SpotiWoW-Raven.toc") -Force
+            }
+            Copy-Item "dist/SpotiWoW-Raven.exe" (Join-Path $stage "companion/SpotiWoW-Raven.exe")
+            Copy-Item "companion/spotify_bridge.py" (Join-Path $stage "companion/spotify_bridge.py")
+            Copy-Item "companion/config.example.json" (Join-Path $stage "companion/config.example.json")
+            $configExamplePath = Join-Path $stage "companion/config.example.json"
+            $configExample = Get-Content $configExamplePath -Raw | ConvertFrom-Json
+            $configExample.language = if ($variant.Code -eq "US") { "us" } else { "fr" }
+            $configExample | ConvertTo-Json -Depth 8 | Set-Content -Path $configExamplePath -Encoding utf8
+            Copy-Item "companion/SpotiWoW-Raven.ico" (Join-Path $stage "companion/SpotiWoW-Raven.ico")
+            Copy-Item "companion/SpotiWoW-Raven.png" (Join-Path $stage "companion/SpotiWoW-Raven.png")
+            Copy-Item "companion/THIRD_PARTY_NOTICES.txt" (Join-Path $stage "companion/THIRD_PARTY_NOTICES.txt")
+            Copy-Item $variant.Readme (Join-Path $stage $variant.Readme)
+            $out = Join-Path $root ("dist/SpotiWoW-Raven-Portable-" + $variant.Code + ".zip")
+            if (Test-Path $out) { Remove-Item $out -Force }
+            Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $out -CompressionLevel Optimal
+
+            # Also publish an add-on-only archive for players who already installed the companion.
+            $addonStage = Join-Path $root ("addon-stage-" + $variant.Code)
+            $addonStageParent = Join-Path $addonStage "Interface/AddOns"
+            New-Item -ItemType Directory -Force -Path $addonStageParent | Out-Null
+            Copy-Item -Recurse (Join-Path $stage "Interface/AddOns/SpotiWoW-Raven") $addonStageParent -Force
+            $addonOut = Join-Path $root ("dist/SpotiWoW-Raven-Addon-" + $variant.Code + ".zip")
+            if (Test-Path $addonOut) { Remove-Item $addonOut -Force }
+            Compress-Archive -Path (Join-Path $addonStage "*") -DestinationPath $addonOut -CompressionLevel Optimal
+          }
+
+      - name: Build the beginner-friendly setup EXE
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+          $repoPath = Join-Path $root "installer/repo.txt"
+          $iconPath = Join-Path $root "installer/SpotiWoW-Raven.ico"
+          $scriptPath = Join-Path $root "installer/SpotiWoW-RavenSetup.py"
+          $distPath = Join-Path $root "dist"
+          $workPath = Join-Path $root "build/setup"
+
+          Set-Content -LiteralPath $repoPath -Value "${{ github.repository }}" -NoNewline
+          if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+            throw "Setup icon not found: $iconPath"
+          }
+          if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+            throw "Setup source not found: $scriptPath"
+          }
+
+          New-Item -ItemType Directory -Force -Path $distPath | Out-Null
+          python -m PyInstaller --clean --noconfirm --onefile --windowed `
+            --name SpotiWoW-Raven-Setup `
+            --icon "$iconPath" `
+            --add-data "$repoPath;." `
+            --add-data "$iconPath;." `
+            --distpath "$distPath" --workpath "$workPath" --specpath "$workPath" `
+            "$scriptPath"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Attach installer, portable packages, and add-on-only zips to the GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/SpotiWoW-Raven-Setup.exe
+            dist/SpotiWoW-Raven-Portable-FR.zip
+            dist/SpotiWoW-Raven-Portable-US.zip
+            dist/SpotiWoW-Raven-Addon-FR.zip
+            dist/SpotiWoW-Raven-Addon-US.zip
