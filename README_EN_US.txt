@@ -1,4 +1,4 @@
-# SpotiWoW-Raven v1.4.6 — US English
+# SpotiWoW-Raven v1.4.7 — US English
 
 SpotiWoW-Raven connects Spotify to compatible WoW 1.12.1 client through the SuperWoW file bridge. This package uses the US English interface and in-game messages.
 
@@ -12,7 +12,7 @@ SpotiWoW-Raven connects Spotify to compatible WoW 1.12.1 client through the Supe
 The installer never asks for a Client Secret and does not download Turtle WoW, VanillaFixes, SuperWoW, SuperAPI, or their DLLs.
 
 ## Requirements
-- compatible WoW 1.12.1 client client based on WoW 1.12.1.
+- Compatible WoW 1.18.1 client client based on WoW 1.12.1.
 - SuperWoW with the `ImportFile` and `ExportFile` functions.
 - `VanillaFixes.exe` in the client folder.
 - A Spotify Developer app configured with the Redirect URI shown above.
