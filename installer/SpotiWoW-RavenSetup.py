@@ -266,7 +266,7 @@ class SetupApp:
         self.browse_button.pack(side="left", padx=(8, 0))
         self.detect_label = ttk.Label(main, wraplength=650)
         if not detected:
-            self.detect_label.pack(anchor="w", pady=( -8, 10))
+            self.detect_label.pack(anchor="w", pady=(0, 10))
 
         self.client_id_label = ttk.Label(main, font=("Segoe UI", 10, "bold"))
         self.client_id_label.pack(anchor="w")
